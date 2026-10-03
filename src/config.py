@@ -3,18 +3,31 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import yaml
-from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
+
+# Resilient imports for optional third-party modules
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 
 # Base project directory
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Load .env file
-load_dotenv(PROJECT_ROOT / ".env")
+# Load .env file if dotenv available
+if load_dotenv is not None:
+    load_dotenv(PROJECT_ROOT / ".env")
 
 
 @dataclass
@@ -54,7 +67,6 @@ class AppSettings:
             return True
         if self.llm_provider == "anthropic" and self.anthropic_api_key and "your_" not in self.anthropic_api_key:
             return True
-        # If set to auto and any key is valid
         if any([
             self.gemini_api_key and "your_" not in self.gemini_api_key,
             self.openai_api_key and "your_" not in self.openai_api_key,
@@ -79,11 +91,28 @@ class AppSettings:
 
 
 def load_yaml_config(file_path: Path) -> Dict[str, Any]:
-    """Safely load a YAML configuration file."""
+    """Safely load a YAML configuration file with JSON fallback."""
     if not file_path.exists():
+        json_path = file_path.with_suffix(".json")
+        if json_path.exists():
+            with open(json_path, "r", encoding="utf-8") as f:
+                return json.load(f)
         return {}
-    with open(file_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+
+    if yaml is not None:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
+        except Exception as e:
+            logger.warning(f"Error parsing {file_path} with yaml: {e}")
+
+    # Fallback to json equivalent if yaml is not installed or errors
+    json_path = file_path.with_suffix(".json")
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    return {}
 
 
 def load_candidate_profile(file_path: Optional[Path] = None) -> Dict[str, Any]:
