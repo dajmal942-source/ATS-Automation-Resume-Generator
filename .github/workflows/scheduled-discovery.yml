@@ -1,9 +1,9 @@
 name: Scheduled Discovery & Match Pipeline
 
 on:
-  schedule:
-    # Run daily at 04:00 UTC (09:30 AM IST)
-    - cron: "0 4 * * *"
+ # Disabled automatic daily execution to prevent auto-generating resumes.                                                                          
+      # schedule:                                                                                                                                       
+      #   - cron: "0 4 * * *" 
   workflow_dispatch:
     inputs:
       min_score:
